@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
 const app = express();
 const PORT = 3000;
 
-//------------------- Définir EJS comme moteur de rendu-----------------------
+//------------------- DEFINIR EJS COMME MOTEUR DE RENDU-----------------------
 
 app.set('view engine', 'ejs');
 
@@ -41,36 +41,34 @@ const item3 = new Item({
     
 });
 
-//----------------------LES RANGER DANS UN TABLEAU ARRAY-----------------------
+//----LES RANGER DANS UN TABLEAU ARRAY----
 
 const defaultItems = [item1, item2, item3];
 
-//------------------------------INSERT MANY---------------------------------
+const listScema = {
+    name: String,
+    items: [itemsSchema]
+}
+const List = mongoose.model("List", listScema);
 
 
-    /*----ANCIENNE VERSION-----
-app.get("/", function(req, res) {
+//------------------------------ GET ROUTE---------------------------------
 
-    Item.find({}, function(err, foundItems){
-        res.render("list", {listTitle: "Today", newListItems: foundItems});
-    });
-});
-   
-    */
-    //-----NOUVELLE VERSION-----
     
     app.get("/", async (req, res) => {
         try {
-            // Recherche tous les éléments dans la collection
+            // RECHERCHE TOUS LES ÉLÉMENTS DANS LA COLLECTION
             const foundItems = await Item.find({});
     
-            // Si la collection est vide, insère les éléments par défaut
+            // SI LA COLLECTION EST VIDE, INSÈRE LES ÉLÉMENTS PAR DÉFAUT
             if (foundItems.length === 0) {
+
+                //INSERT MANY
                 await Item.insertMany(defaultItems);
-                console.log("✅ Successfully saved default items to DB.");
-                res.redirect("/"); // Redirige vers la page principale après l'insertion
+                console.log("✅ Éléments par défaut enregistrés avec succès dans la base de données.");
+                res.redirect("/"); // REDIRIGE VERS LA PAGE PRINCIPALE APRÈS L'INSERTION
             } else {
-                // Si la collection n'est pas vide, affiche les éléments
+                // SI LA COLLECTION N'EST PAS VIDE, AFFICHE LES ÉLÉMENTS
                 res.render("list", { listTitle: "Today", newListItems: foundItems });
             }
         } catch (err) {
@@ -79,22 +77,85 @@ app.get("/", function(req, res) {
         }
     });
     
+    app.get("/:customListName", async (req,res) => {
 
+        const customListName = req.params.customListName;
 
+        const foundList = await List.findOne({ name: customListName });
+                
+            if (!foundList) {
+                //CREER UNE NOUVELLE LISTE
+                const list = new List ({
+                    name: customListName,
+                    items: defaultItems
+                });    
+                
+                 list.save();
+                 res.redirect("/" + customListName);
+   
+            } else {
+                //MONTRER LES LISTES EXISTANTES 
+                res.render("List", { listTitle: foundList.name, newListItems: foundList.items });
+            }
 
-app.post("/", function(req, res) {
+        
 
-    const itemName = req.body.newItem;
+      
 
-    //--------AJOUTER UN ITEM A LA BDD DEPUIS LE SITE-------
-    const item = new Item ({
-        name: itemName
     });
 
-    item.save();
-
-    res.redirect("/");
+    app.get("/about", async (req,res) => {
+        res.render("about");
     });
+
+//----------------------------------------POST ROUTE---------------------------------
+
+        //----------------AJOUT DE NOUVEAU ITEM ----------------------
+    app.post("/", async (req, res) => {
+        try {
+            // RÉCUPÉRER LE NOM DE L'ÉLÉMENT ENVOYÉ PAR LE FORMULAIRE
+            const itemName = req.body.newItem;
+    
+            // CRÉER UN NOUVEL ÉLÉMENT AVEC LE NOM FOURNI
+            const item = new Item({
+                name: itemName
+            });
+    
+            // SAUVEGARDER L'ÉLÉMENT DANS LA BASE DE DONNÉES
+            await item.save();
+    
+            // REDIRIGER VERS LA PAGE PRINCIPALE APRÈS L'AJOUT
+            res.redirect("/");
+        } catch (err) {
+            // GÉRER LES ERREURS ET AFFICHER UN MESSAGE DANS LA CONSOLE
+            console.error("❌ ERREUR LORS DE L'AJOUT DE L'ÉLÉMENT :", err);
+            
+            // ENVOYER UNE RÉPONSE D'ERREUR AU CLIENT
+            res.status(500).send("ERREUR INTERNE DU SERVEUR");
+        }
+    });
+    
+            //--------------------SUPPRESSION D'ITEM----------------------
+    app.post("/delete", async (req, res) => {
+        try {
+            const checkedItemId = req.body.checkbox;
+            
+            const deletedItem = await Item.findByIdAndDelete(checkedItemId);
+            
+            if (deletedItem) {
+                console.log("Successfully deleted checked item.");
+            } else {
+                console.log("Item not found.");
+            }
+            
+            res.redirect("/"); // Rediriger après suppression
+        } catch (err) {
+            console.error("Error deleting item:", err);
+            res.status(500).send("Internal Server Error");
+        }
+    });
+
+
 
 
 
